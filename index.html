@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Пошук найближчих сусідів за допомогою KD-дерева</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body {
             background-color: #000000;
@@ -115,306 +117,289 @@
         © 2024 KD-Tree Search Algorithm
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script>
-      </script>
+<script>
+class KDTreeNode {
+    constructor(point, axis, left = null, right = null) {
+        this.point = point;
+        this.axis = axis;
+        this.left = left;
+        this.right = right;
+    }
+}
 
-        class KDTreeNode {
-            constructor(point, axis, left = null, right = null) {
-                this.point = point;
-                this.axis = axis;
-                this.left = left;
-                this.right = right;
-            }
+class KDTree {
+    constructor(points, depth = 0) {
+        this.k = points[0].length;
+        this.root = this.buildTree(points, depth);
+    }
+
+    buildTree(points, depth) {
+        if (points.length === 0) return null;
+
+        const axis = depth % this.k;
+        points.sort((a, b) => a[axis] - b[axis]);
+        const median = Math.floor(points.length / 2);
+
+        return new KDTreeNode(
+            points[median],
+            axis,
+            this.buildTree(points.slice(0, median), depth + 1),
+            this.buildTree(points.slice(median + 1), depth + 1)
+        );
+    }
+
+    nearestNeighbors(point, M) {
+        const neighbors = [];
+        this.nearestNeighborSearch(point, this.root, 0, neighbors, M);
+        return neighbors.sort((a, b) => a.distance - b.distance).map(n => n.point);
+    }
+
+    nearestNeighborSearch(point, node, depth, neighbors, M) {
+        if (node === null) return;
+
+        const axis = depth % this.k;
+        const distance = this.distance(point, node.point);
+        if (neighbors.length < M || distance < neighbors[neighbors.length - 1].distance) {
+            neighbors.push({ point: node.point, distance: distance });
+            neighbors.sort((a, b) => a.distance - b.distance);
+            if (neighbors.length > M) neighbors.pop();
         }
 
-        class KDTree {
-            constructor(points, depth = 0) {
-                this.k = points[0].length;
-                this.root = this.buildTree(points, depth);
-            }
+        const nextBranch = point[axis] < node.point[axis] ? node.left : node.right;
+        const oppositeBranch = point[axis] < node.point[axis] ? node.right : node.left;
+        this.nearestNeighborSearch(point, nextBranch, depth + 1, neighbors, M);
 
-            buildTree(points, depth) {
-                if (points.length === 0) return null;
-
-                const axis = depth % this.k;
-                points.sort((a, b) => a[axis] - b[axis]);
-                const median = Math.floor(points.length / 2);
-
-                return new KDTreeNode(
-                    points[median],
-                    axis,
-                    this.buildTree(points.slice(0, median), depth + 1),
-                    this.buildTree(points.slice(median + 1), depth + 1)
-                );
-            }
-
-            nearestNeighbors(point, M) {
-                const neighbors = [];
-                this.nearestNeighborSearch(point, this.root, 0, neighbors, M);
-                return neighbors.sort((a, b) => a.distance - b.distance).map(n => n.point);
-            }
-
-            nearestNeighborSearch(point, node, depth, neighbors, M) {
-                if (node === null) return;
-
-                const axis = depth % this.k;
-                const distance = this.distance(point, node.point);
-                if (neighbors.length < M || distance < neighbors[neighbors.length - 1].distance) {
-                    neighbors.push({ point: node.point, distance: distance });
-                    neighbors.sort((a, b) => a.distance - b.distance);
-                    if (neighbors.length > M) neighbors.pop();
-                }
-
-                const nextBranch = point[axis] < node.point[axis] ? node.left : node.right;
-                const oppositeBranch = point[axis] < node.point[axis] ? node.right : node.left;
-                this.nearestNeighborSearch(point, nextBranch, depth + 1, neighbors, M);
-
-                if (Math.abs(point[axis] - node.point[axis]) ** 2 <= neighbors[neighbors.length - 1].distance) {
-                    this.nearestNeighborSearch(point, oppositeBranch, depth + 1, neighbors, M);
-                }
-            }
-
-            distance(p1, p2) {
-                return p1.reduce((sum, val, i) => sum + (val - p2[i]) ** 2, 0);
-            }
+        if (Math.abs(point[axis] - node.point[axis]) ** 2 <= neighbors[neighbors.length - 1].distance) {
+            this.nearestNeighborSearch(point, oppositeBranch, depth + 1, neighbors, M);
         }
+    }
 
-        function linearSearch(points, targetPoint, M) {
-            return points
-                .map(p => ({ point: p, distance: distance(p, targetPoint) }))
-                .sort((a, b) => a.distance - b.distance)
-                .slice(0, M)
-                .map(n => n.point);
-        }
+    distance(p1, p2) {
+        return p1.reduce((sum, val, i) => sum + (val - p2[i]) ** 2, 0);
+    }
+}
 
-        function distance(p1, p2) {
-            return p1.reduce((sum, val, i) => sum + (val - p2[i]) ** 2, 0);
-        }
+function linearSearch(points, targetPoint, M) {
+    return points
+        .map(p => ({ point: p, distance: distance(p, targetPoint) }))
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, M)
+        .map(n => n.point);
+}
 
-        function parsePointsInput(input) {
-            return input.split(';').map(point => point.split(',').map(Number));
-        }
+function distance(p1, p2) {
+    return p1.reduce((sum, val, i) => sum + (val - p2[i]) ** 2, 0);
+}
 
-        function runAlgorithm() {
-            const K = parseInt(document.getElementById("dimension").value);
-            const pointsInput = document.getElementById("pointsInput").value;
-            const targetInput = document.getElementById("targetPoint").value;
-            const M = parseInt(document.getElementById("numNeighbors").value);
+function parsePointsInput(input) {
+    return input.split(';').map(point => point.split(',').map(Number));
+}
 
-            const points = parsePointsInput(pointsInput);
-            const targetPoint = targetInput.split(',').map(Number);
+function runAlgorithm() {
+    const K = parseInt(document.getElementById("dimension").value);
+    const pointsInput = document.getElementById("pointsInput").value;
+    const targetInput = document.getElementById("targetPoint").value;
+    const M = parseInt(document.getElementById("numNeighbors").value);
 
-            if (points.length === 0 || points[0].length !== K) {
-                alert('Введіть коректні координати точок');
-                return;
-            }
-            if (targetPoint.length !== K) {
-                alert('Цільова точка має містити стільки ж координат, скільки вимірів (K)');
-                return;
-            }
+    const points = parsePointsInput(pointsInput);
+    const targetPoint = targetInput.split(',').map(Number);
 
-            const kdTree = new KDTree(points);
+    if (points.length === 0 || points[0].length !== K) {
+        alert('Введіть коректні координати точок');
+        return;
+    }
+    if (targetPoint.length !== K) {
+        alert('Цільова точка має містити стільки ж координат, скільки вимірів (K)');
+        return;
+    }
 
-            const kdStart = performance.now();
-            const nearestKD = kdTree.nearestNeighbors(targetPoint, M);
-            const kdEnd = performance.now();
-            const kdTime = (kdEnd - kdStart).toFixed(4);
+    const kdTree = new KDTree(points);
 
-            const linearStart = performance.now();
-            const nearestLinear = linearSearch(points, targetPoint, M);
-            const linearEnd = performance.now();
-            const linearTime = (linearEnd - linearStart).toFixed(4);
+    const kdStart = performance.now();
+    const nearestKD = kdTree.nearestNeighbors(targetPoint, M);
+    const kdEnd = performance.now();
+    const kdTime = (kdEnd - kdStart).toFixed(4);
 
-            document.getElementById("results").innerHTML = `
-                <h2>Результати:</h2>
-                <div class="result">
-                    <p><strong>Цільова точка:</strong> ${JSON.stringify(targetPoint)}</p>
-                    <p><strong>Найближчі сусіди (KD-дерево):</strong> ${JSON.stringify(nearestKD)}</p>
-                    <p><strong>Час виконання (KD-дерево):</strong> ${kdTime} мс</p>
-                    <p><strong>Найближчі сусіди (Лінійний пошук):</strong> ${JSON.stringify(nearestLinear)}</p>
-                    <p><strong>Час виконання (Лінійний пошук):</strong> ${linearTime} мс</p>
-                </div>
-            `;
+    const linearStart = performance.now();
+    const nearestLinear = linearSearch(points, targetPoint, M);
+    const linearEnd = performance.now();
+    const linearTime = (linearEnd - linearStart).toFixed(4);
 
-            if (K === 1) {
-                visualize1D(points, targetPoint, nearestKD);
-            } else if (K === 2) {
-                visualize2D(points, targetPoint, nearestKD);
-            } else if (K === 3) {
-                visualize3D(points, targetPoint, nearestKD);
-            } else {
-                document.getElementById("visualization").innerHTML = ''; 
-            }
-        }
+    document.getElementById("results").innerHTML = `
+        <h2>Результати:</h2>
+        <div class="result">
+            <p><strong>Цільова точка:</strong> ${JSON.stringify(targetPoint)}</p>
+            <p><strong>Найближчі сусіди (KD-дерево):</strong> ${JSON.stringify(nearestKD)}</p>
+            <p><strong>Час виконання (KD-дерево):</strong> ${kdTime} мс</p>
+            <p><strong>Найближчі сусіди (Лінійний пошук):</strong> ${JSON.stringify(nearestLinear)}</p>
+            <p><strong>Час виконання (Лінійний пошук):</strong> ${linearTime} мс</p>
+        </div>
+    `;
 
-        function visualize1D(points, targetPoint, nearestPoints) {
-            const ctx = document.getElementById('chartCanvas').getContext('2d');
-            new Chart(ctx, {
-                type: 'scatter',
-                data: {
-                    datasets: [
-                        {
-                            label: 'Точки',
-                            data: points.map(p => ({ x: p[0], y: 0 })),
-                            backgroundColor: 'blue'
-                        },
-                        {
-                            label: 'Цільова точка',
-                            data: [{ x: targetPoint[0], y: 0 }],
-                            backgroundColor: 'red'
-                        },
-                        {
-                            label: 'Найближчі сусіди',
-                            data: nearestPoints.map(p => ({ x: p[0], y: 0 })),
-                            backgroundColor: 'green'
-                        }
-                    ]
+    if (K === 1) {
+        visualize1D(points, targetPoint, nearestKD);
+    } else if (K === 2) {
+        visualize2D(points, targetPoint, nearestKD);
+    } else if (K === 3) {
+        visualize3D(points, targetPoint, nearestKD);
+    } else {
+        document.getElementById("visualization").innerHTML = ''; 
+    }
+}
+
+function visualize1D(points, targetPoint, nearestPoints) {
+    const ctx = document.getElementById('chartCanvas').getContext('2d');
+    new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [
+                {
+                    label: 'Точки',
+                    data: points.map(p => ({ x: p[0], y: 0 })),
+                    backgroundColor: 'blue'
                 },
-                options: {
-                    scales: {
-                        x: { type: 'linear', position: 'bottom' },
-                        y: { display: false }
-                    }
-                }
-            });
-        }
-
-        function visualize2D(points, targetPoint, nearestPoints) {
-            const ctx = document.getElementById('chartCanvas').getContext('2d');
-            new Chart(ctx, {
-                type: 'scatter',
-                data: {
-                    datasets: [
-                        {
-                            label: 'Точки',
-                            data: points.map(p => ({ x: p[0], y: p[1] })),
-                            backgroundColor: 'blue'
-                        },
-                        {
-                            label: 'Цільова точка',
-                            data: [{ x: targetPoint[0], y: targetPoint[1] }],
-                            backgroundColor: 'red'
-                        },
-                        {
-                            label: 'Найближчі сусіди',
-                            data: nearestPoints.map(p => ({ x: p[0], y: p[1] })),
-                            backgroundColor: 'green'
-                        }
-                    ]
+                {
+                    label: 'Цільова точка',
+                    data: [{ x: targetPoint[0], y: 0 }],
+                    backgroundColor: 'red'
                 },
-                options: {
-                    scales: {
-                        x: { type: 'linear', position: 'bottom' },
-                        y: { type: 'linear' }
-                    }
+                {
+                    label: 'Найближчі сусіди',
+                    data: nearestPoints.map(p => ({ x: p[0], y: 0 })),
+                    backgroundColor: 'green'
                 }
-            });
-        }
-
-        function visualize3D(points, targetPoint, nearestPoints) {
-            const scene = new THREE.Scene();
-            const light = new THREE.AmbientLight(0xffffff);
-            scene.add(light);
-
-            const gridHelper = new THREE.GridHelper(200, 20);
-            scene.add(gridHelper);
-
-            const axesHelper = new THREE.AxesHelper(100);
-            scene.add(axesHelper);
-
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(150, 150, 150);
-            camera.lookAt(0, 0, 0);
-
-            const renderer = new THREE.WebGLRenderer();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('visualization').innerHTML = '';
-            document.getElementById('visualization').appendChild(renderer.domElement);
-
-            points.forEach(p => {
-                const geometry = new THREE.SphereGeometry(0.5);
-                const material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-                const sphere = new THREE.Mesh(geometry, material);
-                sphere.position.set(p[0], p[1], p[2]);
-                scene.add(sphere);
-            });
-
-            const targetGeometry = new THREE.SphereGeometry(1);
-            const targetMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            const targetSphere = new THREE.Mesh(targetGeometry, targetMaterial);
-            targetSphere.position.set(targetPoint[0], targetPoint[1], targetPoint[2]);
-            scene.add(targetSphere);
-
-            nearestPoints.forEach(p => {
-                const nearestGeometry = new THREE.SphereGeometry(1);
-                const nearestMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-                const nearestSphere = new THREE.Mesh(nearestGeometry, nearestMaterial);
-                nearestSphere.position.set(p[0], p[1], p[2]);
-                scene.add(nearestSphere);
-            });
-
-            function animate() {
-                requestAnimationFrame(animate);
-                camera.position.x = 200 * Math.sin(Date.now() * 0.001);
-                camera.position.z = 200 * Math.cos(Date.now() * 0.001);
-                camera.lookAt(0, 0, 0);
-                renderer.render(scene, camera);
-            }
-
-            animate();
-        }
-
-        var colors = [
-            [62, 35, 255],
-            [60, 255, 60],
-            [255, 35, 98],
-            [45, 175, 230],
-            [255, 0, 255],
-            [255, 128, 0]
-        ];
-
-        var step = 0;
-        var colorIndices = [0, 1, 2, 3];
-        var gradientSpeed = 0.002;
-
-        function updateGradient() {
-            if ($ === undefined) return;
-            
-            var c0_0 = colors[colorIndices[0]];
-            var c0_1 = colors[colorIndices[1]];
-            var c1_0 = colors[colorIndices[2]];
-            var c1_1 = colors[colorIndices[3]];
-
-            var istep = 1 - step;
-            var r1 = Math.round(istep * c0_0[0] + step * c0_1[0]);
-            var g1 = Math.round(istep * c0_0[1] + step * c0_1[1]);
-            var b1 = Math.round(istep * c0_0[2] + step * c0_1[2]);
-            var color1 = `rgb(${r1},${g1},${b1})`;
-
-            var r2 = Math.round(istep * c1_0[0] + step * c1_1[0]);
-            var g2 = Math.round(istep * c1_0[1] + step * c1_1[1]);
-            var b2 = Math.round(istep * c1_0[2] + step * c1_1[2]);
-            var color2 = `rgb(${r2},${g2},${b2})`;
-
-            $('#gradient').css({
-                background: `-webkit-gradient(linear, left top, right top, from(${color1}), to(${color2}))`
-            }).css({
-                background: `-moz-linear-gradient(left, ${color1} 0%, ${color2} 100%)`
-            });
-
-            step += gradientSpeed;
-            if (step >= 1) {
-                step %= 1;
-                colorIndices[0] = colorIndices[1];
-                colorIndices[2] = colorIndices[3];
-                
-                colorIndices[1] = (colorIndices[1] + Math.floor(1 + Math.random() * (colors.length - 1))) % colors.length;
-                colorIndices[3] = (colorIndices[3] + Math.floor(1 + Math.random() * (colors.length - 1))) % colors.length;
+            ]
+        },
+        options: {
+            scales: {
+                x: { type: 'linear', position: 'bottom' },
+                y: { display: false }
             }
         }
+    });
+}
 
-        setInterval(updateGradient, 10);
+function visualize2D(points, targetPoint, nearestPoints) {
+    const ctx = document.getElementById('chartCanvas').getContext('2d');
+    new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [
+                {
+                    label: 'Точки',
+                    data: points.map(p => ({ x: p[0], y: p[1] })),
+                    backgroundColor: 'blue'
+                },
+                {
+                    label: 'Цільова точка',
+                    data: [{ x: targetPoint[0], y: targetPoint[1] }],
+                    backgroundColor: 'red'
+                },
+                {
+                    label: 'Найближчі сусіди',
+                    data: nearestPoints.map(p => ({ x: p[0], y: p[1] })),
+                    backgroundColor: 'green'
+                }
+            ]
+        },
+        options: {
+            scales: {
+                x: { type: 'linear', position: 'bottom' },
+                y: { type: 'linear' }
+            }
+        }
+    });
+}
+
+function visualize3D(points, targetPoint, nearestPoints) {
+    const scene = new THREE.Scene();
+    scene.add(new THREE.AmbientLight(0xffffff));
+    scene.add(new THREE.GridHelper(200, 20));
+    scene.add(new THREE.AxesHelper(100));
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(150, 150, 150);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('visualization').innerHTML = '';
+    document.getElementById('visualization').appendChild(renderer.domElement);
+
+    points.forEach(p => {
+        const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.5), new THREE.MeshBasicMaterial({ color: 0x0000ff }));
+        sphere.position.set(p[0], p[1], p[2]);
+        scene.add(sphere);
+    });
+
+    const targetSphere = new THREE.Mesh(new THREE.SphereGeometry(1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+    targetSphere.position.set(targetPoint[0], targetPoint[1], targetPoint[2]);
+    scene.add(targetSphere);
+
+    nearestPoints.forEach(p => {
+        const sphere = new THREE.Mesh(new THREE.SphereGeometry(1), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
+        sphere.position.set(p[0], p[1], p[2]);
+        scene.add(sphere);
+    });
+
+    function animate() {
+        requestAnimationFrame(animate);
+        camera.position.x = 200 * Math.sin(Date.now() * 0.001);
+        camera.position.z = 200 * Math.cos(Date.now() * 0.001);
+        camera.lookAt(0, 0, 0);
+        renderer.render(scene, camera);
+    }
+
+    animate();
+}
+
+var colors = [
+    [62, 35, 255],
+    [60, 255, 60],
+    [255, 35, 98],
+    [45, 175, 230],
+    [255, 0, 255],
+    [255, 128, 0]
+];
+var step = 0;
+var colorIndices = [0, 1, 2, 3];
+var gradientSpeed = 0.002;
+
+function updateGradient() {
+    if ($ === undefined) return;
+
+    var c0_0 = colors[colorIndices[0]];
+    var c0_1 = colors[colorIndices[1]];
+    var c1_0 = colors[colorIndices[2]];
+    var c1_1 = colors[colorIndices[3]];
+
+    var istep = 1 - step;
+    var r1 = Math.round(istep * c0_0[0] + step * c0_1[0]);
+    var g1 = Math.round(istep * c0_0[1] + step * c0_1[1]);
+    var b1 = Math.round(istep * c0_0[2] + step * c0_1[2]);
+    var color1 = `rgb(${r1},${g1},${b1})`;
+
+    var r2 = Math.round(istep * c1_0[0] + step * c1_1[0]);
+    var g2 = Math.round(istep * c1_0[1] + step * c1_1[1]);
+    var b2 = Math.round(istep * c1_0[2] + step * c1_1[2]);
+    var color2 = `rgb(${r2},${g2},${b2})`;
+
+    $('#gradient').css({
+        background: `-webkit-gradient(linear, left top, right top, from(${color1}), to(${color2}))`
+    }).css({
+        background: `-moz-linear-gradient(left, ${color1} 0%, ${color2} 100%)`
+    });
+
+    step += gradientSpeed;
+    if (step >= 1) {
+        step %= 1;
+        colorIndices[0] = colorIndices[1];
+        colorIndices[2] = colorIndices[3];
+        colorIndices[1] = (colorIndices[1] + Math.floor(1 + Math.random() * (colors.length - 1))) % colors.length;
+        colorIndices[3] = (colorIndices[3] + Math.floor(1 + Math.random() * (colors.length - 1))) % colors.length;
+    }
+}
+setInterval(updateGradient, 10);
+</script>
 </body>
 </html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пошук найближчих сусідів за допомогою KD-дерева</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
+    <style>
+        body {
+            background-color: #000000;
+            padding: 0;
+            margin: 0;
+        }
+        .container {
+            width: 90%;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 1;
+        }
+        #gradient {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        label {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            display: block;
+            color: #555;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 1rem;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 1.1rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            z-index: 1;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results, #visualization {
+            margin-top: 30px;
+        }
+        .result {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-left: 5px solid #007bff;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            font-size: 0.9rem;
+            color: #888;
+        }
+        canvas {
+            width: 100%;
+            max-height: 500px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gradient"></div>
+    
+    <div class="container">
+        <h1>Пошук найближчих сусідів за допомогою KD-дерева</h1>
+
+        <label for="dimension">Кількість вимірів (K):</label>
+        <input type="number" id="dimension" value="2" min="1" max="10">
+
+        <label for="pointsInput">Координати точок (формат: x1,y1;x2,y2;...):</label>
+        <textarea id="pointsInput" placeholder="Введіть координати точок..."></textarea>
+
+        <label for="targetPoint">Цільова точка (формат: x,y або x,y,z):</label>
+        <input type="text" id="targetPoint" placeholder="Введіть цільову точку...">
+
+        <label for="numNeighbors">Кількість найближчих сусідів (M):</label>
+        <input type="number" id="numNeighbors" value="1" min="1">
+
+        <button onclick="runAlgorithm()">Запустити алгоритм</button>
+
+        <div id="results"></div>
+        <div id="visualization">
+            <canvas id="chartCanvas"></canvas>
+        </div>
+    </div>
+
+    <footer>
+        © 2024 KD-Tree Search Algorithm
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+      </script>
+</body>
+</html>
+    
